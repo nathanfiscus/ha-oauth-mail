@@ -1,6 +1,6 @@
 # OAuth Mail Integration
 
-[![hacs_badge](https://img.shields.io/badge/HACS-Default-41BDF5.svg)](https://github.com/hacs/integration)
+[![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
 
 This Home Assistant integration provides OAuth authentication for email services and automatically configures the OAuth Mail Proxy addon with the account details and tokens.
 
