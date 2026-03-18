@@ -1,0 +1,6 @@
+{
+  "name": "OAuth Mail",
+  "filename": "oauth_mail",
+  "homeassistant": "2023.1.0",
+  "render_readme": true
+}
