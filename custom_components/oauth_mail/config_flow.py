@@ -307,11 +307,11 @@ class OAuthMailConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 if self.user_input["provider"] == "outlook":
                     f.write("permission_url = https://login.microsoftonline.com/common/oauth2/v2.0/authorize\n")
                     f.write("token_url = https://login.microsoftonline.com/common/oauth2/v2.0/token\n")
-                    f.write("oauth2_scope = https://outlook.office.com/IMAP.AccessAsUser.All offline_access\n")
+                    f.write("oauth2_scope = https://outlook.office.com/IMAP.AccessAsUser.All offline_access openid profile email\n")
                 elif self.user_input["provider"] == "gmail":
                     f.write("permission_url = https://accounts.google.com/o/oauth2/auth\n")
                     f.write("token_url = https://oauth2.googleapis.com/token\n")
-                    f.write("oauth2_scope = https://mail.google.com/\n")
+                    f.write("oauth2_scope = https://mail.google.com/ https://www.googleapis.com/auth/userinfo.email\n")
                 f.write(f"client_id = {self.user_input['client_id']}\n")
                 f.write(f"client_secret = {self.user_input['client_secret']}\n")
                 f.write("redirect_uri = http://localhost\n")
