@@ -13,7 +13,7 @@
       },
       "authorize": {
         "title": "Authorize Access",
-        "description": "Click the link below to authorize access to your email account:\n\n{auth_url}\n\nAfter authorizing, you will be redirected. Copy the full URL from your browser address bar and paste it in the field below.",
+        "description": "Click the link below to authorize access to your email account:\n\n[Click here to login and authorize]({auth_url})\n\nYou will be redirected back after authorization is complete.",
         "data": {
           "url": "Full Redirect URL from Browser"
         }

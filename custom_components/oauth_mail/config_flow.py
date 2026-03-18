@@ -119,6 +119,11 @@ class OAuthMailConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         self._auth_url = f"{permission_url}?{'&'.join(f'{k}={requests.utils.quote(str(v))}' for k, v in params.items())}"
 
+        # Register callback view if not already registered
+        if not self.callback_view:
+            self.callback_view = OAuthMailAuthCallbackView()
+            self.hass.http.register_view(self.callback_view)
+
         if user_input is not None:
             errors = await self._async_validate_response(user_input)
             if not errors:
