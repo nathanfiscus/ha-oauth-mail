@@ -134,6 +134,7 @@ class OAuthMailConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             description_placeholders={"auth_url": self._auth_url},
             data_schema=REQUEST_AUTHORIZATION_SCHEMA,
             errors=errors,
+            last_step=False,
         )
 
     async def _async_validate_response(self, user_input):
