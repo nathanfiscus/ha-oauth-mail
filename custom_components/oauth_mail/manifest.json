@@ -8,6 +8,6 @@
   "integration_type": "service",
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/nathanfiscus/ha-addons/issues",
-  "requirements": ["requests==2.31.0", "cryptography==41.0.7"],
+  "requirements": ["requests>=2.31.0", "cryptography>=41.0.7"],
   "version": "1.0.0"
 }
