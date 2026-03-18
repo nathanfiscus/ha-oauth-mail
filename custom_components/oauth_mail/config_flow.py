@@ -1,11 +1,8 @@
 """Configuration flow for OAuth Mail."""
 
-import base64
 import configparser
 import functools as ft
-import hashlib
 import logging
-import os
 import time
 import urllib.parse
 from typing import Any
@@ -14,10 +11,6 @@ import homeassistant.helpers.config_validation as cv
 import requests
 import voluptuous as vol
 from aiohttp import web_response
-from cryptography.fernet import Fernet
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2
-from cryptography.hazmat.backends import default_backend
 from homeassistant import config_entries
 from homeassistant.components.http import HomeAssistantView
 from homeassistant.config_entries import ConfigFlowResult
@@ -30,84 +23,6 @@ _LOGGER = logging.getLogger(__name__)
 
 AUTH_CALLBACK_NAME = "api:oauth_mail"
 AUTH_CALLBACK_PATH = "/api/oauth_mail"
-
-# Default encryption password for tokens (must match what proxy expects)
-DEFAULT_TOKEN_PASSWORD = "oauth_mail_default_password"
-# Iteration count for PBKDF2 (matching email-oauth2-proxy default for new tokens)
-TOKEN_ITERATIONS = 1_200_000
-
-
-def _get_token_cipher(password: str, salt: bytes) -> Fernet:
-    """Get Fernet cipher for token encryption/decryption using PBKDF2 key derivation.
-    
-    Matches the email-oauth2-proxy encryption method:
-    https://github.com/simonrob/email-oauth2-proxy/blob/main/emailproxy.py#L677-L683
-    """
-    # Derive a key using PBKDF2-HMAC-SHA256
-    kdf = PBKDF2(
-        algorithm=hashes.SHA256(),
-        length=32,
-        salt=salt,
-        iterations=TOKEN_ITERATIONS,
-        backend=default_backend()
-    )
-    key = base64.urlsafe_b64encode(kdf.derive(password.encode()))
-    return Fernet(key)
-
-
-def _encrypt_token(token: str, password: str = None, salt: bytes = None) -> tuple:
-    """Encrypt a token using Fernet with PBKDF2 key derivation.
-    
-    Returns: (encrypted_token, salt_b64, iterations)
-    Where salt_b64 and iterations should be stored in config for later decryption.
-    """
-    try:
-        if password is None:
-            password = DEFAULT_TOKEN_PASSWORD
-        if salt is None:
-            salt = os.urandom(16)  # Generate random salt of 16 bytes
-        
-        cipher = _get_token_cipher(password, salt)
-        encrypted = cipher.encrypt(token.encode())
-        
-        # Return encrypted token, base64-encoded salt, and iterations for config storage
-        salt_b64 = base64.b64encode(salt).decode('utf-8')
-        _LOGGER.debug("Token encrypted successfully - salt length: %d bytes, iterations: %d", len(salt), TOKEN_ITERATIONS)
-        return encrypted.decode(), salt_b64, TOKEN_ITERATIONS
-    except Exception as err:
-        _LOGGER.error("Failed to encrypt token: %s", err)
-        return token, "", 0
-
-
-def _decrypt_token(encrypted_token: str, password: str = None, salt_b64: str = "", iterations: int = 0) -> str:
-    """Decrypt a token using Fernet with PBKDF2 key derivation."""
-    try:
-        if password is None:
-            password = DEFAULT_TOKEN_PASSWORD
-        if not salt_b64 or not iterations:
-            _LOGGER.error("Cannot decrypt token - missing salt or iterations from config")
-            return encrypted_token
-        
-        # Decode salt from base64
-        salt = base64.b64decode(salt_b64.encode('utf-8'))
-        
-        # Temporarily use the stored iterations for decryption
-        kdf = PBKDF2(
-            algorithm=hashes.SHA256(),
-            length=32,
-            salt=salt,
-            iterations=iterations,
-            backend=default_backend()
-        )
-        key = base64.urlsafe_b64encode(kdf.derive(password.encode()))
-        cipher = Fernet(key)
-        
-        decrypted = cipher.decrypt(encrypted_token.encode())
-        _LOGGER.debug("Token decrypted successfully (length: %d -> %d)", len(encrypted_token), len(decrypted))
-        return decrypted.decode()
-    except Exception as err:
-        _LOGGER.error("Failed to decrypt token: %s", err)
-        return encrypted_token
 
 def get_authorization_schema(auth_url):
     """Get the authorization schema with the auth URL."""
@@ -367,33 +282,12 @@ class OAuthMailConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             entity_name = user_email
             self.user_input["entity_name"] = entity_name
 
-            # Save configuration with encrypted tokens
+            # Save configuration
             config = configparser.ConfigParser(interpolation=None)
             config.add_section(self.user_input["entity_name"])
-            
-            # Encrypt access token (returns encrypted_token, salt_b64, iterations)
-            access_token = tokens.get("access_token", "")
-            encrypted_access_token, salt_b64, iterations = _encrypt_token(access_token)
-            config.set(self.user_input["entity_name"], "access_token", encrypted_access_token)
-            config.set(self.user_input["entity_name"], "token_salt", salt_b64)
-            config.set(self.user_input["entity_name"], "token_iterations", str(iterations))
-            
-            # Encrypt refresh token if present (reuse same salt/iterations)
+            config.set(self.user_input["entity_name"], "access_token", tokens.get("access_token", ""))
             if "refresh_token" in tokens:
-                refresh_token = tokens["refresh_token"]
-                # Use same salt and iterations approach as proxy expects
-                kdf = PBKDF2(
-                    algorithm=hashes.SHA256(),
-                    length=32,
-                    salt=base64.b64decode(salt_b64),
-                    iterations=iterations,
-                    backend=default_backend()
-                )
-                key = base64.urlsafe_b64encode(kdf.derive(DEFAULT_TOKEN_PASSWORD.encode()))
-                cipher = Fernet(key)
-                encrypted_refresh_token = cipher.encrypt(refresh_token.encode()).decode()
-                config.set(self.user_input["entity_name"], "refresh_token", encrypted_refresh_token)
-            
+                config.set(self.user_input["entity_name"], "refresh_token", tokens["refresh_token"])
             config.set(
                 self.user_input["entity_name"],
                 "access_token_expiry",
@@ -413,15 +307,16 @@ class OAuthMailConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 if self.user_input["provider"] == "outlook":
                     f.write("permission_url = https://login.microsoftonline.com/common/oauth2/v2.0/authorize\n")
                     f.write("token_url = https://login.microsoftonline.com/common/oauth2/v2.0/token\n")
-                    f.write("oauth2_scope = https://outlook.office.com/IMAP.AccessAsUser.All offline_access openid profile email\n")
+                    f.write("oauth2_scope = https://outlook.office.com/IMAP.AccessAsUser.All offline_access\n")
                 elif self.user_input["provider"] == "gmail":
                     f.write("permission_url = https://accounts.google.com/o/oauth2/auth\n")
                     f.write("token_url = https://oauth2.googleapis.com/token\n")
-                    f.write("oauth2_scope = https://mail.google.com/ https://www.googleapis.com/auth/userinfo.email\n")
+                    f.write("oauth2_scope = https://mail.google.com/\n")
                 f.write(f"client_id = {self.user_input['client_id']}\n")
                 f.write(f"client_secret = {self.user_input['client_secret']}\n")
                 f.write("redirect_uri = http://localhost\n")
-                f.write(f"token_encryption_password = {DEFAULT_TOKEN_PASSWORD}\n")
+                f.write(f"access_token = {tokens.get('access_token', '')}\n")
+                f.write(f"refresh_token = {tokens.get('refresh_token', '')}\n")
 
             return self.async_create_entry(
                 title=entity_name,
