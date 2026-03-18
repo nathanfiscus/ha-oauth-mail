@@ -13,9 +13,9 @@
       },
       "authorize": {
         "title": "Authorize Access",
-        "description": "Click the link below to authorize access to your email account:\n\n[Login with {provider}]({auth_url})\n\nAfter authorizing, you will be redirected. Paste the full URL from your browser address bar in the field below.",
+        "description": "Click the link below to authorize access to your email account:\n\n{auth_url}\n\nAfter authorizing, you will be redirected. Copy the full URL from your browser address bar and paste it in the field below.",
         "data": {
-          "url": "Redirect URL"
+          "url": "Full Redirect URL from Browser"
         }
       }
     },
