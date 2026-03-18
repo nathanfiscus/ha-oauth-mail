@@ -10,7 +10,7 @@ This Home Assistant integration provides OAuth authentication for email services
 
 Click the button below to open the integration in HACS:
 
-[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=nathanfiscus&repository=ha-oauth-mail-integration&category=integration)
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=nathanfiscus&repository=ha-oauth-mail&category=integration)
 
 Alternatively, you can:
 
@@ -21,7 +21,7 @@ Alternatively, you can:
 
 ### Manual Installation
 
-1. Download the `custom_components/oauth_mail` folder from the [latest release](https://github.com/nathanfiscus/ha-oauth-mail-integration/releases)
+1. Download the `custom_components/oauth_mail` folder from the [latest release](https://github.com/nathanfiscus/ha-oauth-mail/releases)
 2. Copy it to your Home Assistant's `custom_components` directory
 3. Restart Home Assistant
 
