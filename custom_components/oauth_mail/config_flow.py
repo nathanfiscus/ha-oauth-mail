@@ -148,6 +148,8 @@ class OAuthMailConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         # For now, return empty string since OAuth Mail doesn't check specific permissions
         # This can be expanded later if permission checking is added
         return ""
+
+    async def _async_validate_response(self, user_input):
         """Validate the authorization response."""
         errors = {}
         url = user_input.get("url", "")
