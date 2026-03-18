@@ -94,10 +94,10 @@ class OAuthMailConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         provider = self.user_input["provider"]
         if provider == "outlook":
             permission_url = "https://login.microsoftonline.com/common/oauth2/v2.0/authorize"
-            scope = "https://outlook.office.com/IMAP.AccessAsUser.All offline_access"
+            scope = "https://outlook.office.com/IMAP.AccessAsUser.All offline_access openid profile email"
         elif provider == "gmail":
             permission_url = "https://accounts.google.com/o/oauth2/auth"
-            scope = "https://mail.google.com/"
+            scope = "https://mail.google.com/ https://www.googleapis.com/auth/userinfo.email"
         else:
             return self.async_abort(reason="unsupported_provider")
 
@@ -245,6 +245,7 @@ class OAuthMailConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     import jwt
                     id_token = tokens["id_token"]
                     decoded = jwt.decode(id_token, options={"verify_signature": False})
+                    _LOGGER.debug("Decoded id_token claims: %s", {k: v for k, v in decoded.items() if k not in ["aud", "iss", "sub"]})
                     user_email = decoded.get("email") or decoded.get("preferred_username")
                 if not user_email:
                     # Fallback to userinfo endpoint
@@ -252,18 +253,26 @@ class OAuthMailConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     userinfo_response = await self.hass.async_add_executor_job(
                         ft.partial(requests.get, userinfo_url, headers={"Authorization": f"Bearer {tokens['access_token']}"})
                     )
+                    _LOGGER.debug("Outlook userinfo response status: %s", userinfo_response.status_code)
                     if userinfo_response.status_code == 200:
                         userinfo = userinfo_response.json()
+                        _LOGGER.debug("Outlook userinfo keys: %s", list(userinfo.keys()))
                         user_email = userinfo.get("mail") or userinfo.get("userPrincipalName")
+                    else:
+                        _LOGGER.error("Failed to get Outlook userinfo: %s", userinfo_response.text[:200])
             elif provider == "gmail":
                 # For Gmail, get email from userinfo endpoint
                 userinfo_url = "https://www.googleapis.com/oauth2/v2/userinfo"
                 userinfo_response = await self.hass.async_add_executor_job(
                     ft.partial(requests.get, userinfo_url, headers={"Authorization": f"Bearer {tokens['access_token']}"})
                 )
+                _LOGGER.debug("Gmail userinfo response status: %s", userinfo_response.status_code)
                 if userinfo_response.status_code == 200:
                     userinfo = userinfo_response.json()
+                    _LOGGER.debug("Gmail userinfo keys: %s", list(userinfo.keys()))
                     user_email = userinfo.get("email")
+                else:
+                    _LOGGER.error("Failed to get Gmail userinfo: %s", userinfo_response.text[:200])
 
             if not user_email:
                 _LOGGER.error("Could not retrieve user email from OAuth provider")
