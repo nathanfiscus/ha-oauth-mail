@@ -37,18 +37,28 @@ Click the button below to quickly add the OAuth Mail integration to Home Assista
 
 ### Setup Steps
 
-### Setup Steps
+1. **Prepare OAuth Credentials**: Set up OAuth credentials for your email provider:
+   - For Outlook/Microsoft 365: Create an app registration in Azure AD
+   - For Gmail: Create OAuth 2.0 credentials in Google Cloud Console
+2. **Install OAuth Mail Proxy Addon** (if using the companion addon)
 
-1. Install OAuth Mail Proxy Addon
-2. Click the button above or add the integration manually in Home Assistant.
-3. Enter your email, client_id, client_secret, password, and provider.
-4. Follow the OAuth flow to authorize.
-5. The integration will automatically configure the proxy with account details and encrypted tokens.
-6. Start OAuth Mail Proxy Addon
+3. **Add the Integration**: Click the button above or manually add it in Home Assistant
+
+4. **Enter Configuration**:
+   - **Entity Name**: A friendly name for this email account
+   - **Client ID**: Your OAuth application's client ID
+   - **Client Secret**: Your OAuth application's client secret
+   - **Provider**: Select either "outlook" or "gmail"
+
+5. **Authorize**: You'll be directed to your email provider's login page to authorize access
+
+6. **Completion**: The integration will automatically exchange the authorization code for tokens and configure the proxy
 
 ## How It Works
 
-- The integration handles OAuth authentication and obtains tokens
-- Account configuration and encrypted tokens are written to `/share` for the addon to use
-- The addon automatically loads the configuration and tokens on startup
-- No manual configuration of the proxy is required
+- The integration uses passwordless OAuth authentication
+- No passwords or sensitive credentials are stored in Home Assistant
+- Authorization codes are exchanged server-to-server for access tokens
+- Tokens are written to `/share` for use by the addon
+- The proxy automatically loads the configuration and tokens on startup
+- Tokens are refreshed automatically when they expire
