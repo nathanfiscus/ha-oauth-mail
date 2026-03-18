@@ -35,7 +35,6 @@ def get_authorization_schema(auth_url):
 
 CONFIG_SCHEMA = vol.Schema(
     {
-        vol.Required("entity_name"): vol.All(cv.string, vol.Strip),
         vol.Required("client_id"): vol.All(cv.string, vol.Strip),
         vol.Required("client_secret"): vol.All(cv.string, vol.Strip),
         vol.Optional("provider", default="outlook"): vol.In(["outlook", "gmail"]),
@@ -80,16 +79,7 @@ class OAuthMailConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors = {}
         if user_input:
             self.user_input = user_input
-            # Check if entity_name is already configured
-            existing_entries = [
-                entry
-                for entry in self.hass.config_entries.async_entries(DOMAIN)
-                if entry.data.get("entity_name") == user_input.get("entity_name")
-            ]
-            if existing_entries:
-                errors["entity_name"] = "already_configured"
-            else:
-                return await self.async_step_authorize()
+            return await self.async_step_authorize()
 
         return self.async_show_form(
             step_id="user",
@@ -247,6 +237,42 @@ class OAuthMailConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
             tokens = response.json()
 
+            # Get user email from token response or userinfo endpoint
+            user_email = None
+            if provider == "outlook":
+                # For Outlook, we can get email from the id_token or userinfo
+                if "id_token" in tokens:
+                    import jwt
+                    id_token = tokens["id_token"]
+                    decoded = jwt.decode(id_token, options={"verify_signature": False})
+                    user_email = decoded.get("email") or decoded.get("preferred_username")
+                if not user_email:
+                    # Fallback to userinfo endpoint
+                    userinfo_url = "https://graph.microsoft.com/v1.0/me"
+                    userinfo_response = await self.hass.async_add_executor_job(
+                        ft.partial(requests.get, userinfo_url, headers={"Authorization": f"Bearer {tokens['access_token']}"})
+                    )
+                    if userinfo_response.status_code == 200:
+                        userinfo = userinfo_response.json()
+                        user_email = userinfo.get("mail") or userinfo.get("userPrincipalName")
+            elif provider == "gmail":
+                # For Gmail, get email from userinfo endpoint
+                userinfo_url = "https://www.googleapis.com/oauth2/v2/userinfo"
+                userinfo_response = await self.hass.async_add_executor_job(
+                    ft.partial(requests.get, userinfo_url, headers={"Authorization": f"Bearer {tokens['access_token']}"})
+                )
+                if userinfo_response.status_code == 200:
+                    userinfo = userinfo_response.json()
+                    user_email = userinfo.get("email")
+
+            if not user_email:
+                _LOGGER.error("Could not retrieve user email from OAuth provider")
+                return self.async_abort(reason="token_request_failed")
+
+            # Use email as entity_name
+            entity_name = user_email
+            self.user_input["entity_name"] = entity_name
+
             # Save configuration
             config = configparser.ConfigParser(interpolation=None)
             config.add_section(self.user_input["entity_name"])
@@ -268,7 +294,7 @@ class OAuthMailConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             # Also write account config for the proxy
             account_config_file = "/share/oauth-mail-accounts.ini"
             with open(account_config_file, "w", encoding="utf-8") as f:
-                f.write(f"[{self.user_input['entity_name']}]\n")
+                f.write(f"[{entity_name}]\n")
                 if self.user_input["provider"] == "outlook":
                     f.write("permission_url = https://login.microsoftonline.com/common/oauth2/v2.0/authorize\n")
                     f.write("token_url = https://login.microsoftonline.com/common/oauth2/v2.0/token\n")
@@ -282,7 +308,7 @@ class OAuthMailConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 f.write("redirect_uri = http://localhost\n")
 
             return self.async_create_entry(
-                title=self.user_input["entity_name"],
+                title=entity_name,
                 data=self.user_input,
             )
         except Exception as err:  # pylint: disable=broad-except
