@@ -27,6 +27,7 @@ def get_authorization_schema(auth_url):
     """Get the authorization schema with the auth URL."""
     return vol.Schema(
         {
+            vol.Required("auth_url_display", default=auth_url): cv.string,
             vol.Required("url"): cv.string,
         }
     )
@@ -133,13 +134,20 @@ class OAuthMailConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(
             step_id="authorize",
-            description_placeholders={"auth_url": self._auth_url},
+            description_placeholders={
+                "auth_url": self._auth_url,
+                "failed_permissions": self._get_failed_permissions(),
+            },
             data_schema=get_authorization_schema(self._auth_url),
             errors=errors,
             last_step=False,
         )
 
-    async def _async_validate_response(self, user_input):
+    def _get_failed_permissions(self):
+        """Get failed permissions string."""
+        # For now, return empty string since OAuth Mail doesn't check specific permissions
+        # This can be expanded later if permission checking is added
+        return ""
         """Validate the authorization response."""
         errors = {}
         url = user_input.get("url", "")

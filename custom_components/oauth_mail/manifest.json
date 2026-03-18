@@ -3,7 +3,7 @@
   "name": "OAuth Mail",
   "codeowners": [],
   "config_flow": true,
-  "dependencies": [],
+  "dependencies": ["http"],
   "documentation": "https://github.com/nathanfiscus/ha-addons/tree/main/ha-oauth-mail-integration",
   "integration_type": "service",
   "iot_class": "cloud_polling",

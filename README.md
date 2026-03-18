@@ -66,3 +66,39 @@ Click the button below to quickly add the OAuth Mail integration to Home Assista
 - Tokens are written to `/share` for use by the addon
 - The proxy automatically loads the configuration and tokens on startup
 - Tokens are refreshed automatically when they expire
+
+## Testing
+
+This integration includes comprehensive tests following Home Assistant best practices.
+
+### Running Tests
+
+1. Install test dependencies:
+
+   ```bash
+   pip install -r requirements-test.txt
+   ```
+
+2. Run the test suite:
+
+   ```bash
+   pytest
+   ```
+
+3. Run tests with coverage report:
+   ```bash
+   pytest --cov=custom_components.oauth_mail --cov-report=html
+   ```
+
+### Test Coverage
+
+The tests cover:
+
+- Configuration flow validation
+- OAuth URL generation for Outlook and Gmail
+- Token exchange process
+- Error handling for invalid inputs
+- Duplicate entity name detection
+- Component initialization
+
+See `tests/README.md` for detailed testing information.
