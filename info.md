@@ -1,5 +1,9 @@
 # OAuth Mail
 
+<p align="center">
+  <img src="./custom_components/oauth_mail/brand/oauthmailicon.png" alt="OAuth Mail Integration" width="200">
+</p>
+
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
 
 This integration provides OAuth authentication for email services and automatically configures the OAuth Mail Proxy addon with account details and tokens.
