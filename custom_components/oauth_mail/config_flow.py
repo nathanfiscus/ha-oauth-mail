@@ -4,6 +4,7 @@ import configparser
 import functools as ft
 import logging
 import time
+import urllib.parse
 from typing import Any
 
 import homeassistant.helpers.config_validation as cv
@@ -154,27 +155,46 @@ class OAuthMailConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors = {}
         url = user_input.get("url", "")
 
+        _LOGGER.debug("Validating authorization response URL: %s", url)
+
         if not url:
             errors["url"] = "invalid_url"
             return errors
 
         if "code=" not in url:
+            _LOGGER.error("No authorization code found in URL: %s", url)
             errors["url"] = "invalid_url"
             return errors
 
         # Extract the authorization code from the URL
         try:
-            code = None
-            for param in url.split("?")[1].split("&"):
-                if param.startswith("code="):
-                    code = param.split("=")[1]
-                    break
+            parsed_url = urllib.parse.urlparse(url)
+            query_params = urllib.parse.parse_qs(parsed_url.query)
+            
+            # Check for state parameter
+            state = query_params.get("state", [None])[0]
+            if state != "oauth_mail":
+                _LOGGER.error("Invalid state parameter: %s", state)
+                errors["url"] = "invalid_url"
+                return errors
+            
+            if "code" in query_params:
+                code = query_params["code"][0]
+                # URL decode the authorization code
+                code = urllib.parse.unquote(code)
+                _LOGGER.debug("Extracted authorization code: %s...", code[:10] if code else "None")
+            else:
+                _LOGGER.error("No 'code' parameter found in URL query: %s", parsed_url.query)
+                errors["url"] = "invalid_url"
+                return errors
 
             if not code:
+                _LOGGER.error("Authorization code is empty")
                 errors["url"] = "invalid_url"
                 return errors
 
             self.user_input["auth_code"] = code
+            _LOGGER.debug("Successfully stored authorization code")
         except Exception as err:  # pylint: disable=broad-except
             _LOGGER.error("Error extracting code from URL: %s", err)
             errors["url"] = "invalid_url"
@@ -185,6 +205,12 @@ class OAuthMailConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def _async_create_entry(self):
         """Create the config entry."""
         try:
+            # Validate that we have an authorization code
+            auth_code = self.user_input.get("auth_code")
+            if not auth_code:
+                _LOGGER.error("No authorization code available for token exchange")
+                return self.async_abort(reason="token_request_failed")
+
             # Exchange the authorization code for tokens
             provider = self.user_input["provider"]
             if provider == "outlook":
@@ -199,17 +225,24 @@ class OAuthMailConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             data = {
                 "client_id": self.user_input["client_id"],
                 "client_secret": self.user_input["client_secret"],
-                "code": self.user_input.get("auth_code"),
+                "code": auth_code,
                 "grant_type": "authorization_code",
                 "redirect_uri": redirect_uri,
             }
 
+            _LOGGER.debug("Token request data: %s", {k: v[:10] + "..." if len(str(v)) > 10 else v for k, v in data.items()})
+
             response = await self.hass.async_add_executor_job(
-                ft.partial(requests.post, token_url, data=data)
+                ft.partial(requests.post, token_url, data=data, headers={"Content-Type": "application/x-www-form-urlencoded"})
             )
+
+            _LOGGER.debug("Token response status: %s", response.status_code)
+            _LOGGER.debug("Token response headers: %s", dict(response.headers))
 
             if response.status_code != 200:
                 _LOGGER.error("Token request failed: %s", response.text)
+                _LOGGER.error("Request URL: %s", token_url)
+                _LOGGER.error("Request data keys: %s", list(data.keys()))
                 return self.async_abort(reason="token_request_failed")
 
             tokens = response.json()
