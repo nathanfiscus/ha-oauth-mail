@@ -1,0 +1,9 @@
+{
+  "entity": {
+    "sensor": {
+      "oauth_mail": {
+        "default": "mdi:email"
+      }
+    }
+  }
+}
