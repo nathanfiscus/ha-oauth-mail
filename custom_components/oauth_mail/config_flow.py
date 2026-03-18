@@ -124,9 +124,11 @@ class OAuthMailConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             if not errors:
                 return await self._async_create_entry()
 
+        provider_name = "Outlook" if provider == "outlook" else "Gmail"
+
         return self.async_show_form(
             step_id="authorize",
-            description_placeholders={"auth_url": self._auth_url},
+            description_placeholders={"auth_url": self._auth_url, "provider": provider_name},
             data_schema=REQUEST_AUTHORIZATION_SCHEMA,
             errors=errors,
         )
