@@ -23,11 +23,13 @@ _LOGGER = logging.getLogger(__name__)
 AUTH_CALLBACK_NAME = "api:oauth_mail"
 AUTH_CALLBACK_PATH = "/api/oauth_mail"
 
-REQUEST_AUTHORIZATION_SCHEMA = vol.Schema(
-    {
-        vol.Required("url"): cv.string,
-    }
-)
+def get_authorization_schema(auth_url):
+    """Get the authorization schema with the auth URL."""
+    return vol.Schema(
+        {
+            vol.Required("url"): cv.string,
+        }
+    )
 
 CONFIG_SCHEMA = vol.Schema(
     {
@@ -132,7 +134,7 @@ class OAuthMailConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return self.async_show_form(
             step_id="authorize",
             description_placeholders={"auth_url": self._auth_url},
-            data_schema=REQUEST_AUTHORIZATION_SCHEMA,
+            data_schema=get_authorization_schema(self._auth_url),
             errors=errors,
             last_step=False,
         )
