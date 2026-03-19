@@ -3,11 +3,11 @@
     "step": {
       "user": {
         "title": "OAuth Mail",
-        "description": "Enter your OAuth application credentials",
+        "description": "Enter your OAuth application credentials{proxy_password_help}",
         "data": {
-          "entity_name": "Account Name",
           "client_id": "Client ID",
           "client_secret": "Client Secret",
+          "proxy_password": "Proxy Password",
           "provider": "Email Provider"
         }
       },

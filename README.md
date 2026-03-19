@@ -49,9 +49,9 @@ Click the button below to quickly add the OAuth Mail integration to Home Assista
 3. **Add the Integration**: Click the button above or manually add it in Home Assistant
 
 4. **Enter Configuration**:
-   - **Entity Name**: A friendly name for this email account
    - **Client ID**: Your OAuth application's client ID
    - **Client Secret**: Your OAuth application's client secret
+   - **Proxy Password**: Only required for the first account. This is the local password your email client will use when connecting to the proxy, not your mailbox password.
    - **Provider**: Select either "outlook" or "gmail"
 
 5. **Authorize**: You'll be directed to your email provider's login page to authorize access
@@ -63,9 +63,12 @@ Click the button below to quickly add the OAuth Mail integration to Home Assista
 - The integration uses passwordless OAuth authentication
 - No passwords or sensitive credentials are stored in Home Assistant
 - Authorization codes are exchanged server-to-server for access tokens
-- Tokens are written to `/share` for use by the addon
+- Tokens are encrypted with the same PBKDF2 + Fernet scheme used by `email-oauth2-proxy`
+- The encrypted tokens, `token_salt`, and `token_iterations` are written to `/share/oauth-mail-accounts.ini`
 - The proxy automatically loads the configuration and tokens on startup
 - Tokens are refreshed automatically when they expire
+
+For the first configured account, the integration asks for the proxy password and stores it in the first config entry so later accounts can reuse it automatically. This password is only for the local client-to-proxy connection and token encryption; it is not your email provider password.
 
 ## Testing
 
