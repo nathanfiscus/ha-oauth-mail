@@ -13,9 +13,9 @@
       },
       "authorize": {
         "title": "Authorize Access",
-        "description": "Complete the configuration by clicking on the link and copying the returned url into this field afterwards and submit\n\n[Link MS365 account]({auth_url}){failed_permissions}",
+        "description": "Complete the configuration by clicking the link below. After sign-in, setup should continue automatically.\n\n[Link account]({auth_url}){failed_permissions}",
         "data": {
-          "url": "Full Redirect URL from Browser"
+          "url": "Fallback: Full Redirect URL from Browser (optional)"
         }
       }
     },

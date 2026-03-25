@@ -171,7 +171,7 @@ def get_authorization_schema(auth_url):
     return vol.Schema(
         {
             vol.Required("auth_url_display", default=auth_url): cv.string,
-            vol.Required("url"): cv.string,
+            vol.Optional("url"): cv.string,
         }
     )
 
@@ -182,17 +182,28 @@ class OAuthMailAuthCallbackView(HomeAssistantView):
     name = AUTH_CALLBACK_NAME
     requires_auth = False
 
-    def __init__(self):
+    def __init__(self, hass, flow_id: Optional[str]) -> None:
         """Initialize the callback view."""
+        self.hass = hass
+        self.flow_id = flow_id
         self.token_url = ""
 
     @callback
     async def get(self, request):
         """Handle the GET request."""
         self.token_url = str(request.url)
+
+        if self.flow_id:
+            self.hass.async_create_task(
+                self.hass.config_entries.flow.async_configure(
+                    self.flow_id,
+                    user_input={"url": self.token_url},
+                )
+            )
+
         return web_response.Response(
             headers={"content-type": "text/html"},
-            text="<script>window.close()</script>This window can be closed",
+            text="<script>window.close()</script>Setup will continue automatically. This window can be closed.",
         )
 
 
@@ -285,11 +296,18 @@ class OAuthMailConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         # Register callback view if not already registered
         if not self.callback_view:
-            self.callback_view = OAuthMailAuthCallbackView()
+            self.callback_view = OAuthMailAuthCallbackView(self.hass, getattr(self, "flow_id", None))
             self.hass.http.register_view(self.callback_view)
 
+        callback_url = None
         if user_input is not None:
-            errors = await self._async_validate_response(user_input)
+            callback_url = user_input.get("url")
+
+        if not callback_url and self.callback_view and self.callback_view.token_url:
+            callback_url = self.callback_view.token_url
+
+        if callback_url:
+            errors = await self._async_validate_response(callback_url)
             if not errors:
                 return await self._async_create_entry()
 
@@ -310,10 +328,9 @@ class OAuthMailConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         # This can be expanded later if permission checking is added
         return ""
 
-    async def _async_validate_response(self, user_input):
+    async def _async_validate_response(self, url: str):
         """Validate the authorization response."""
         errors = {}
-        url = user_input.get("url", "")
 
         _LOGGER.debug("Validating authorization response URL: %s", url)
 

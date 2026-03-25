@@ -1,6 +1,6 @@
 """Tests for first-account proxy password handling in the config flow."""
 
-from unittest.mock import Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
@@ -141,3 +141,33 @@ async def test_later_account_reuses_saved_proxy_password_for_encryption(
     assert result["type"] is RESULT_TYPE_CREATE_ENTRY
     assert "proxy_password" not in result["data"]
     assert mock_write.call_args.kwargs["proxy_password"] == "saved-proxy-password"
+
+
+async def test_callback_auto_submits_authorize_step(hass: HomeAssistant) -> None:
+    """OAuth callback should auto-submit authorize step without manual URL paste."""
+    flow = _build_flow(hass)
+    flow.flow_id = "test-flow-id"
+
+    mock_async_configure = AsyncMock()
+    hass.config_entries.flow = Mock(async_configure=mock_async_configure)
+
+    with patch("custom_components.oauth_mail.config_flow.get_url", return_value="http://localhost:8123"):
+        await flow.async_step_user(
+            user_input={
+                "client_id": "test_client_id",
+                "client_secret": "test_client_secret",
+                "provider": "gmail",
+                "proxy_password": "password",
+            },
+        )
+
+    request = Mock()
+    request.url = "http://localhost:8123/api/oauth_mail?code=mock_auth_code&state=oauth_mail"
+    response = await flow.callback_view.get(request)
+    await hass.async_block_till_done()
+
+    mock_async_configure.assert_awaited_once_with(
+        "test-flow-id",
+        user_input={"url": str(request.url)},
+    )
+    assert "continue automatically" in response.text
